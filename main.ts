@@ -4,32 +4,32 @@
 // full-size round trip costs roughly 40 bps on this pool (4 bps fee + 2 bps
 // slippage + ~15 bps of constant-product impact per leg at the observed
 // depth), so the bot trades rarely and only for a big, fast bounce. It stays
-// in cash until CBBTC has washed out hard -- down more than 180 bps over the
-// last 60 one-minute bars -- AND the tape has already turned up -- up more
-// than 30 bps over the last 10 bars. It then buys with all of its cash and
-// exits on the first of: +300 bps against its cost, -200 bps against its
-// cost, or 180 bars held. Nothing here reads the clock, the environment, or
+// in cash until CBBTC has washed out hard -- down more than 200 bps over the
+// last 105 one-minute bars -- AND the tape has already turned up -- up more
+// than 40 bps over the last 5 bars. It then buys with all of its cash and
+// exits on the first of: +400 bps against its cost, -300 bps against its
+// cost, or 120 bars held. Nothing here reads the clock, the environment, or
 // any randomness: the decisions are pure integer functions of the closes the
 // harness has sent, so two runs on the same window produce byte-identical
 // action logs.
 //
 // Backtest on the kit's dev window (1,440 bars, BTC -4.0% over the day):
-// one round trip, net PnL about +$27 after every fee, slippage and impact,
-// max drawdown about 1.5%. Buy-and-hold on the same window loses about $41.
+// three round trips, net PnL about +$47 after every fee, slippage and impact,
+// max drawdown about 1.4%. Buy-and-hold on the same window loses about $41.
 
 import { BPS, runBars, type BarsState, type OrderInput } from './vendor/makefun-bars.ts';
 
 const SYMBOL = 'CBBTC';
 
-// Entry: 60-bar return below -DIP_BPS and 10-bar return above +UP_BPS.
-const DIP_BARS = 60;
-const DIP_BPS = 180n;
-const UP_BARS = 10;
-const UP_BPS = 30n;
+// Entry: 105-bar return below -DIP_BPS and 5-bar return above +UP_BPS.
+const DIP_BARS = 105;
+const DIP_BPS = 200n;
+const UP_BARS = 5;
+const UP_BPS = 40n;
 // Exit: take profit / stop loss against the position's cost, or time stop.
-const TAKE_PROFIT_BPS = 300n;
-const STOP_LOSS_BPS = 200n;
-const MAX_HOLD_BARS = 180;
+const TAKE_PROFIT_BPS = 400n;
+const STOP_LOSS_BPS = 300n;
+const MAX_HOLD_BARS = 120;
 // Reject a fill that moved too far from the last close (a gap-up buy or a
 // gap-down sell is a bad fill); 1-minute moves on this pool stay well under it.
 const MAX_SLIPPAGE_BPS = 150;
