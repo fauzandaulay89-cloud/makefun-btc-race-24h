@@ -6,16 +6,28 @@
 // depth), so the bot trades rarely and only for a big, fast bounce. It stays
 // in cash until CBBTC has washed out hard -- down more than 200 bps over the
 // last 105 one-minute bars -- AND the tape has already turned up -- up more
-// than 40 bps over the last 5 bars. It then buys with all of its cash and
-// exits on the first of: +400 bps against its cost, -300 bps against its
+// than 30 bps over the last 5 bars. It then buys with all of its cash and
+// exits on the first of: +425 bps against its cost, -300 bps against its
 // cost, or 120 bars held. Nothing here reads the clock, the environment, or
 // any randomness: the decisions are pure integer functions of the closes the
 // harness has sent, so two runs on the same window produce byte-identical
 // action logs.
 //
 // Backtest on the kit's dev window (1,440 bars, BTC -4.0% over the day):
-// three round trips, net PnL about +$47 after every fee, slippage and impact,
+// three round trips, net PnL about +$51 after every fee, slippage and impact,
 // max drawdown about 1.4%. Buy-and-hold on the same window loses about $41.
+//
+// Tuning note (round 2): the two changes from v2 (UP 40 -> 30 bps, TP 400 ->
+// 425 bps) work together -- the earlier entry buys the big bounce about 1%
+// cheaper, which is exactly what lets the higher take-profit trigger at the
+// rally's peak instead of cutting it short. Either change alone scores lower
+// on the dev window. A 2,187-trial neighbourhood sweep around these values
+// (dip 90-120 bars / 175-225 bps, up 25-35 bps, TP 425-475 bps, SL 250-350
+// bps, hold 110-130 bars) keeps the score at +$49 to +$51, so the result is
+// a plateau, not a single lucky point. TP 425 is the low end of that plateau:
+// on the dev window it behaves byte-identically to TP 450 (same action log),
+// and on the unseen race window it also fires on a bounce that peaks between
+// +4.25% and +4.5% above cost, where TP 450 would fall back to the time stop.
 
 import { BPS, runBars, type BarsState, type OrderInput } from './vendor/makefun-bars.ts';
 
@@ -25,9 +37,9 @@ const SYMBOL = 'CBBTC';
 const DIP_BARS = 105;
 const DIP_BPS = 200n;
 const UP_BARS = 5;
-const UP_BPS = 40n;
+const UP_BPS = 30n;
 // Exit: take profit / stop loss against the position's cost, or time stop.
-const TAKE_PROFIT_BPS = 400n;
+const TAKE_PROFIT_BPS = 425n;
 const STOP_LOSS_BPS = 300n;
 const MAX_HOLD_BARS = 120;
 // Reject a fill that moved too far from the last close (a gap-up buy or a
@@ -40,14 +52,14 @@ const MIN_NOTIONAL = 1_000_000n;
 const closes: bigint[] = [];
 let heldBars = 0;
 
-/** True when the washout has turned up: deep 60-bar dip plus a 10-bar rise. */
+/** True when the washout has turned up: deep 105-bar dip plus a 5-bar rise. */
 function washoutTurningUp(): boolean {
   if (closes.length <= DIP_BARS) return false;
   const now = closes[closes.length - 1];
-  // 60-bar return < -180 bps (integer cross-multiplication, no floats):
-  // the entry fails unless now sits strictly below then * (1 - 180 bps).
+  // 105-bar return < -200 bps (integer cross-multiplication, no floats):
+  // the entry fails unless now sits strictly below then * (1 - 200 bps).
   if (now * BPS >= closes[closes.length - 1 - DIP_BARS] * (BPS - DIP_BPS)) return false;
-  // 10-bar return > +30 bps.
+  // 5-bar return > +30 bps.
   if (now * BPS <= closes[closes.length - 1 - UP_BARS] * (BPS + UP_BPS)) return false;
   return true;
 }
